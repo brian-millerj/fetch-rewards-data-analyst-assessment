@@ -7,13 +7,66 @@ Demonstrating how I reason about the Fetch Take Home assessment data and how I c
 - Generate a query to capture data quality issues against the new structured relational data model
 - Write a short email or Slack message to the business stakeholder
 
+## Data Exploration
+First, I transformed the data into a more usable format using Python. See my [Jupyter Notebook](./formatting-json-to-csv.ipynb). Using Python, I transformed the JSON files into a csv to be imported into a Microsoft SQL Server database. From there, I explored the datasets to identify what each record in the datasets represent and if there were any duplicate records within the tables.
+
+I found that the brands and receipts tables represented one row per brand and receipt, respectively; however, the users table looks to contain duplicate userId's. Where there are 212 unique userId's, there are a total of 495 records meaning that there are duplicate records within the table. See [Identifying Duplicate Data](#identifying-duplicate-data) for a more detailed over of the users duplicate data. Luckily, each record that has a duplicate userId, each column is duplicated, therefore I am simply using distinct records.
+
+![duplicates](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/46465281-cfcb-4339-8ed0-66daae6f65de)
+
+SQL used to identify if tables contain duplicates:
+```sql
+select
+  'users' AS tableName, 
+  COUNT(*) AS totalRows, 
+  COUNT(DISTINCT userId) AS UniqueIds, 
+  case when COUNT(*) > COUNT(DISTINCT userId) THEN 1 ELSE 0 END AS tableHasDuplicates
+FROM 
+  FetchRewards.dbo.users
+
+union all
+
+select
+  'brands' AS tableName, 
+  COUNT(*) AS totalRows, 
+  COUNT(DISTINCT brandId) AS UniqueIds, 
+  case when COUNT(*) > COUNT(DISTINCT brandId) THEN 1 ELSE 0 END AS tableHasDuplicates
+FROM 
+  FetchRewards.dbo.brands
+
+union all
+
+select 
+  'receipts' AS tableName, 
+  COUNT(*) AS totalRows, 
+  COUNT(DISTINCT receiptId) AS UniqueIds, 
+  case when COUNT(*) > COUNT(DISTINCT receiptId) THEN 1 ELSE 0 END AS tableHasDuplicates
+FROM 
+  FetchRewards.dbo.receipts
+```
+To keep each table one row per record, I created another table called **'receiptItems'** that was derived from a nested JSON object in the 'receipts' table. The **'receipts'** table joins to **'receiptItems'** with a one-to-many relationship on **receipts.receiptId = receiptItems.receiptId** as seen in the Relational Data Model.
+
+Next, I identified that the brands table is missing many records and contain ambiguous and inconsistent records. See [Identifying Incomplete Data](#identifying-incomplete-data) and [Identifying Ambiguous and Inconsistent Data](#identifying-ambiguous-and-inconsistent-data) for the discovery methodology. For this analysis, I did keep this dataset as is for simplicity, but when communicating with stakeholders and team leads, discussing the repercussions of this is imperative.
+
+Lastly, in the receipts data, there are various records that seem as if they could make me raise on eyebrow, but without seeing the receipt and going row by row, I am unable to say for certain that there is a data integrity issue, so I did keep the receipt and receiptItems tables as is since they are unique rows, but similar to the brands dataset, ensure any caveats needed are communicated clearly. I identified this simply through scanning the data. As a best practice, for data I am unfamiliar with, scanning the table to familiarize myself will a lot of the time catch issues queries would have a difficult time identifying.
+
+As an example, these receipt items below, there looks to be 2 unique barcodes on the receipt, one with a description one without.
+
+- For barcode '075925306254', this has 2 line items, both with different prices and barcode '034100573065' has 3 line items (Description: 'MILLER LITE 24 PACK 12OZ CAN'), with a price of $1.00, which seems very low for this item.
+
+![image](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/0028c162-504c-4bd1-8171-f91cee2ac403)
+
+
 ## 1. Relational Data Model
+The relational data model is based on the clean datasets (discussed above) with relationships based on primary keys and foreign keys.
+
 <img src="./relational-data-model.png" alt="Diagram of relational model" />
 
 ## 2. SQL Query (T-SQL)
 I chose questions 3 and 4. Here is my query:
 - Question 3: When considering average spend from receipts with 'rewardsReceiptStatus’ of ‘Accepted’ or ‘Rejected’, which is greater?
 - Question 4: When considering total number of items purchased from receipts with 'rewardsReceiptStatus’ of ‘Accepted’ or ‘Rejected’, which is greater?
+	- **NOTE**: 'FINISHED' is the equivelant of 'Accepted' as 'Accepted' was not available in the datasets.
 
 ```sql
 SELECT
@@ -27,7 +80,7 @@ WHERE
 GROUP BY
   r.rewardsReceiptStatus;
 ```
---TEXT GOES HERE FOR ANSWER SUMMARY--
+As seen below, 'FINISHED' receipts have a greater average total spent and total number of items purchased compared to 'REJECTED' receipts.
 
 ![sql-3-4-output](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/851ff24a-23ea-4aeb-893d-36cbb2a769ac)
 
@@ -84,7 +137,58 @@ WHERE
 ```
 ![userid-example](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/c85bc2bf-fe1c-443c-b8af-855be4b8c390)
 
-### Identifying Ambiguous and Inconsistent data
+### Identifying Ambiguous and Inconsistent Data
+Using the "brands" table for this example, we want to ensure that "brandId" (unique identifier) does not map to multiple brands.
+
+Running the below query, we see that there are 14 brandNames that are mapped to 2 brandId's:
+```sql
+select
+	[name] as brandName,
+	count(brandId) as countOfBrandId
+FROM FetchRewards.dbo.brands b
+group by 
+	[name]
+order by 
+	count(brandId) desc;
+```
+![CountofBrandID](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/7909acb2-3f15-495d-9fbe-4e04e0b3c260)
+
+Let's take a look at 2 brandName's that have 2 brandId's ('Pull-Ups', 'Caleb's Kola'):
+```sql
+select
+	barcode,
+	category,
+	categoryCode,
+	[name],
+	topBrand,
+	brandId,
+	cpg_id,
+	cpg_ref,
+	brandCode
+FROM 
+	FetchRewards.dbo.brands b
+WHERE 
+	b.[name] in ('Caleb''s Kola','Pull-Ups')
+ORDER BY
+	b.[name]
+```
+- Running the above query we identify ambinguity and consistency issues:
+	- Pull-Ups has the same cpg_id and category but 2 different brandId's and barcodes
+	- Further, Pull-Ups has 2 different brandCode's that are slightly different:
+		- 'PULLUPS'
+		- 'PULL UPS'
+	- Caleb's Kola has 2 different cpg_id's and brandId's
+		- Looking at the category column, we see 2 different values:
+			- Beverages
+			- Snacks
+	- Similar to Pull-Ups, Caleb's Kola also has 2 different brandCode's that are slightly different:
+			- CALEB'S KOLA
+			- CALEBS KOLA
+
+![incomplete-ambiguous-data](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/976b1db9-c365-421c-92f1-a2996ad8952d)
+
+
+-> Where these could technically be two different brands or cpg products, it is worth identifying and making the team who maintains the table aware of this to gain better understanding of the integrity of the data.
 
 ### Identifying Incomplete Data
 The below query identifies NULL values dynamically within a table to help understand the completeness of the data. If we consider the 'brands' table, the query below quickly identifies that there are:
@@ -114,3 +218,5 @@ EXEC(@null_sql)
 ![NULL-data](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/9e291a59-abbe-4ee1-8a24-0b512194ab6b)
 
 ## 4. Stakeholder Communication
+
+
