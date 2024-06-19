@@ -10,7 +10,7 @@ Demonstrating how I reason about the Fetch Take Home assessment data and how I c
 ## Data Exploration
 First, I transformed the data into a more usable format using Python. See my [Jupyter Notebook](./formatting-json-to-csv.ipynb). Using Python, I transformed the JSON files into a csv to be imported into a Microsoft SQL Server database. From there, I explored the datasets to identify what each record in the datasets represent and if there were any duplicate records within the tables.
 
-I found that the brands and receipts tables represented one row per brand and receipt, respectively; however, the users table looks to contain duplicate userId's. Where there are 212 unique userId's, there are a total of 495 records meaning that there are duplicate records within the table. See [Identifying Duplicate Data](#identifying-duplicate-data) for a more detailed over of the users duplicate data. Luckily, each record that has a duplicate userId, each column is duplicated, therefore I am simply using distinct records.
+I found that the brands and receipts tables represented one row per brand and receipt, respectively; however, the users table looks to contain duplicate userId's. Where there are 212 unique userId's, there are a total of 495 records meaning that there are duplicate records within the table. See [Identifying Duplicate Data](#identifying-duplicate-data) for a more detailed overview of the users duplicate data. Luckily, each record that has a duplicate userId, each column contains the same information, therefore I am simply using distinct records.
 
 ![duplicates](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/46465281-cfcb-4339-8ed0-66daae6f65de)
 
@@ -107,7 +107,7 @@ FROM
 ```
 ![duplicate-user-count](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/0ae2ecfe-2149-4f9a-8e97-80d3afb0692b)
 
-Understanding that there are duplicate userId's, is this coming from a specific user or multiple users? Running the query below, we see that there are several users that have 2+ records, two of which have 20 records ('54943462e4b07e684157a532', 5fc961c3b8cfca11a077dd33').
+Understanding that there are duplicate userId's, is this coming from a specific user or multiple users? Running the query below, we see that there are several users that have 2+ records, two of which have 20 records ('54943462e4b07e684157a532', '5fc961c3b8cfca11a077dd33').
 ```sql
 SELECT
 	userId,
@@ -196,8 +196,8 @@ ORDER BY
 The below query identifies NULL values dynamically within each column of a table to help understand the completeness of the data. If we consider the ```brands``` table, the query below quickly identifies that there are:
 - 155 rows with a NULL category (13% of rows)
 - 650 rows with a NULL categoryCode (56% of total rows)
-- 612 rows with a NULL topBrand (52% of columns)
-- 269 rows with a NULL brandCode (23% of columns)
+- 612 rows with a NULL topBrand (52% of total rows)
+- 269 rows with a NULL brandCode (23% of total rows)
 
 ```sql
 DECLARE @null_sql VARCHAR(MAX)
