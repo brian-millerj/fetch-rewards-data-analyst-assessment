@@ -220,4 +220,4 @@ EXEC(@null_sql)
 ![NULL-data](https://github.com/brian-millerj/fetch-rewards-data-analyst-assessment/assets/68014965/9e291a59-abbe-4ee1-8a24-0b512194ab6b)
 
 ## 4. Stakeholder Communication
-Please see [Stakeholder Email](./Stakeholder-email.pdf) for an example on how I communicate and reason about data with others who may not be fully familiar with the technical aspect. In the email, I provided a high level overview, a summary of findings, and provided a link to the in-depth overview of the data quality issues if they are interested in more information.
+Please see [Stakeholder Email](./stakeholder-email.pdf) for an example on how I communicate and reason about data with others who may not be fully familiar with the technical aspect. In the email, I provided a high level overview, a summary of findings, and provided a link to the in-depth overview of the data quality issues if they are interested in more information.
